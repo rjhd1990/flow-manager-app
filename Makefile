@@ -9,6 +9,12 @@ run:
 test:
 	pytest tests/ -v
 
+test-cov:
+	pytest tests/ --cov=app --cov-report=html --cov-report=term
+
+test-watch:
+	pytest-watch tests/
+
 docker-build:
 	docker-compose build
 

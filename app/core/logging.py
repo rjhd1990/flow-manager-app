@@ -1,8 +1,18 @@
 import logging
+import sys
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-)
+from app.core.config import settings
 
-logger = logging.getLogger("flow-manager")
+
+def setup_logging():
+    """Configure application logging"""
+
+    logging.basicConfig(
+        level=getattr(logging, settings.LOG_LEVEL),
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
+
+    # Set third-party loggers to WARNING
+    logging.getLogger("uvicorn").setLevel(logging.WARNING)
+    logging.getLogger("fastapi").setLevel(logging.WARNING)
