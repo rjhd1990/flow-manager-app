@@ -23,7 +23,6 @@ flow-manager-app/
 │   │   ├── dependencies.py        # Dependency injection
 │   │   └── routers/
 │   │       ├── __init__.py
-│   │       ├── health.py          # Health check endpoint
 │   │       └── flows.py           # Flow management endpoints
 │   ├── core/
 │   │   ├── config.py              # Application settings
@@ -37,7 +36,7 @@ flow-manager-app/
 │       ├── task_registry.py       # Task registration
 │       └── tasks.py               # Task implementations
 ├── tests/
-│   └── test_health.py
+│   └── test_*.py
 ├── .env.example
 ├── requirements.txt
 ├── Dockerfile
