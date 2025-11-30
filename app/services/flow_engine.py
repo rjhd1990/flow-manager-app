@@ -3,7 +3,14 @@ import uuid
 from datetime import UTC, datetime
 from typing import Dict, Optional
 
-from app.models import Condition, Flow, FlowDefinition, FlowExecutionStatus, TaskResult
+from app.models import (
+    Condition,
+    Flow,
+    FlowDefinition,
+    FlowExecutionStatus,
+    TaskResult,
+    TaskStatus,
+)
 from app.services.task_registry import TaskRegistry
 
 logger = logging.getLogger(__name__)
@@ -70,7 +77,7 @@ class FlowEngine:
         return execution_id
 
     def _run_flow(self, execution: FlowExecutionStatus, flow: Flow):
-        """Main flow execution loop"""
+        """Main flow execution loop with proper failure handling"""
         current_task = flow.start_task
         context = {}
 
@@ -80,39 +87,79 @@ class FlowEngine:
             logger.info(f"Executing task: {current_task}")
             execution.current_task = current_task
 
-            # Execute task
-            task_func = self.task_registry.get(current_task)
-            result = task_func(context)
+            try:
+                # Execute task
+                task_func = self.task_registry.get(current_task)
+                result = task_func(context)
 
-            # Store result
-            context[current_task] = result.model_dump()
-            execution.task_results[current_task] = result
-            execution.completed_tasks.append(current_task)
+                # Store result
+                context[current_task] = result.model_dump()
+                execution.task_results[current_task] = result
+                execution.completed_tasks.append(current_task)
 
-            logger.info(f"Task {current_task} completed: {result.status}")
+                logger.info(
+                    f"Task {current_task} completed with status: {result.status}"
+                )
 
-            # Find and evaluate condition
-            condition = self._find_condition(flow, current_task)
+                # Find and evaluate condition
+                condition = self._find_condition(flow, current_task)
 
-            if not condition:
-                logger.info(f"No condition for task {current_task}, ending flow")
-                break
+                if not condition:
+                    logger.info(f"No condition for task {current_task}, ending flow")
+                    break
 
-            next_task = self._evaluate_condition(condition, result)
-            logger.info(f"Next task: {next_task}")
+                # Evaluate condition based on task result
+                next_task = self._evaluate_condition(condition, result)
+                logger.info(f"Condition evaluated: next task = {next_task}")
 
-            current_task = next_task
+                # If next task is "end", we're done
+                if next_task == "end":
+                    logger.info("Flow directed to end")
+                    break
 
-        # Update execution status
-        execution.status = "completed"
-        execution.current_task = None
-        execution.ended_at = datetime.now(UTC).isoformat()
+                current_task = next_task
 
-        execution.message = (
+            except Exception as e:
+                # Handle unexpected errors during task execution
+                logger.error(
+                    f"Unexpected error executing task {current_task}: {str(e)}"
+                )
+                execution.status = "failed"
+                execution.current_task = None
+                execution.ended_at = datetime.now(UTC).isoformat()
+                execution.message = f"Flow failed at task {current_task}: {str(e)}"
+                return
+
+        # Determine final status based on completed tasks
+        final_status = "completed"
+        final_message = (
             f"Flow completed. Executed {len(execution.completed_tasks)} tasks."
         )
 
-        logger.info(f"Flow execution completed: {execution.execution_id}")
+        # Check if any task failed
+        failed_tasks = [
+            task_name
+            for task_name, result in execution.task_results.items()
+            if result.status == TaskStatus.FAILURE
+        ]
+
+        if failed_tasks:
+            final_status = "completed_with_failures"
+            final_message = (
+                f"Flow completed with failures. "
+                f"Executed {len(execution.completed_tasks)} tasks. "
+                f"Failed tasks: {', '.join(failed_tasks)}"
+            )
+
+        # Update execution status
+        execution.status = final_status
+        execution.current_task = None
+        execution.ended_at = datetime.now(UTC).isoformat()
+        execution.message = final_message
+
+        logger.info(
+            f"Flow execution finished: {execution.execution_id} - {final_status}"
+        )
 
     def _find_condition(self, flow: Flow, task_name: str) -> Optional[Condition]:
         """Find condition for a given task"""
