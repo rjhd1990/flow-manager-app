@@ -9,8 +9,7 @@ A generic flow execution engine for sequential task processing with conditional 
 - ✅ RESTful API with FastAPI
 - ✅ Task registry for dynamic task registration
 - ✅ Execution tracking and status monitoring
-- ✅ Docker support
-- ✅ Comprehensive logging
+
 
 ## Project Structure
 
@@ -46,6 +45,7 @@ flow-manager-app/
 ├── Makefile
 └── README.md
 ```
+
 
 ## Quick Start
 
@@ -204,7 +204,7 @@ Tasks receive a context dictionary containing results from all previously execut
 def my_task(context: Dict) -> TaskResult:
     # Access previous task results
     previous_data = context.get("previous_task", {}).get("data")
-    
+
     # Process and return result
     return TaskResult(
         status=TaskStatus.SUCCESS,
