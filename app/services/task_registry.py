@@ -1,7 +1,5 @@
 from typing import Callable, Dict
 
-from app.models import TaskResult
-
 
 class TaskRegistry:
     """Registry to store and retrieve task implementations"""
